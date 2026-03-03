@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LILA BLACK — Player Journey Visualizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ──────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:          #07080d;
+  --panel:       #0d0f1a;
+  --panel2:      #111420;
+  --border:      #1c2035;
+  --border2:     #252840;
+  --accent:      #f5a623;
+  --accent2:     #e8912a;
+  --text:        #dde3f0;
+  --muted:       #5a6280;
+  --muted2:      #8892b0;
+  --kill:        #ef4444;
+  --death:       #fb923c;
+  --storm:       #a855f7;
+  --loot:        #22d3ee;
+  --human:       #3b82f6;
+  --bot:         #10b981;
+  --font-ui:     'Rajdhani', sans-serif;
+  --font-mono:   'JetBrains Mono', monospace;
+  --font-body:   'Inter', sans-serif;
+}
+
+html { background: var(--bg); color: var(--text); }
+body { display: flex; flex-direction: column; font-family: var(--font-body); font-size: 13px; min-height: 100vh; overflow-y: auto; }
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--panel); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── Top Bar ───────────────────────────────────────────────────────────── */
+#topbar {
+  display: flex; align-items: center; gap: 20px;
+  padding: 0 16px;
+  height: 48px; min-height: 48px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#logo {
+  font-family: var(--font-ui);
+  font-size: 22px; font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+#logo span { color: var(--muted2); font-weight: 400; font-size: 13px; letter-spacing: 0.05em; margin-left: 8px; }
+#topstats {
+  display: flex; gap: 20px; margin-left: 12px;
+}
+.tstat {
+  display: flex; flex-direction: column;
+  font-family: var(--font-mono);
+}
+.tstat-val { font-size: 15px; font-weight: 500; color: var(--accent); line-height: 1; }
+.tstat-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+#topbar-right {
+  margin-left: auto; display: flex; align-items: center; gap: 10px;
+}
+#no-data-banner {
+  display: none;
+  background: #2d1a00;
+  border: 1px solid #7a4a00;
+  color: #ffc97a;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* ── Layout ────────────────────────────────────────────────────────────── */
+#app {
+  display: flex; flex: none; overflow: hidden;
+  height: calc(100vh - 48px);
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────────── */
+#sidebar {
+  width: 240px; min-width: 240px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+
+.sb-section {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.sb-title {
+  font-family: var(--font-ui);
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+/* Map selector */
+#map-tabs {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.map-tab {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px;
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 6px; cursor: pointer;
+  transition: border-color .15s, background .15s;
+  font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.map-tab:hover { border-color: var(--border2); }
+.map-tab.active { border-color: var(--accent); background: #1a1508; }
+.map-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.map-count { font-size: 11px; color: var(--muted); font-family: var(--font-mono); margin-left: auto; }
+
+/* Selects */
+select {
+  width: 100%;
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 7px 8px;
+  border-radius: 5px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  cursor: pointer;
+  margin-bottom: 6px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235a6280' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+}
+select:focus { outline: none; border-color: var(--accent); }
+select option { background: var(--panel2); }
+.select-lbl { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+
+/* Toggles */
+.toggle-group { display: flex; flex-direction: column; gap: 6px; }
+.toggle-row {
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer; user-select: none;
+}
+.toggle-row input[type=checkbox] { display: none; }
+.toggle-pip {
+  width: 14px; height: 14px;
+  border-radius: 3px; flex-shrink: 0;
+  border: 2px solid currentColor;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s;
+}
+.toggle-pip svg { display: none; }
+.toggle-row input:checked + .toggle-pip { background: currentColor; }
+.toggle-row input:checked + .toggle-pip svg { display: block; }
+.toggle-lbl {
+  font-family: var(--font-ui); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.03em;
+  display: flex; align-items: center; gap: 6px;
+}
+.toggle-count {
+  font-family: var(--font-mono); font-size: 10px;
+  color: var(--muted); margin-left: auto;
+}
+
+/* Heatmap layer picker */
+#hm-layers { display: flex; flex-direction: column; gap: 4px; }
+.hm-btn {
+  padding: 5px 8px;
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 5px; cursor: pointer;
+  font-family: var(--font-ui); font-size: 11px; font-weight: 500;
+  color: var(--muted2); letter-spacing: 0.04em;
+  display: flex; align-items: center; gap: 6px;
+  transition: all .15s;
+}
+.hm-btn:hover { border-color: var(--border2); color: var(--text); }
+.hm-btn.active { color: var(--text); }
+.hm-swatch { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.hm-none-btn {
+  padding: 5px 8px;
+  background: var(--panel2); border: 1px solid var(--border);
+  border-radius: 5px; cursor: pointer;
+  font-family: var(--font-ui); font-size: 11px;
+  color: var(--muted); letter-spacing: 0.04em;
+  transition: all .15s;
+}
+.hm-none-btn:hover, .hm-none-btn.active { border-color: var(--border2); color: var(--text); }
+
+/* Legend dots */
+#legend { display: flex; flex-direction: column; gap: 5px; padding: 4px 0; }
+.leg-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted2); }
+.leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.leg-diamond { width: 8px; height: 8px; border-radius: 1px; flex-shrink: 0; transform: rotate(45deg); }
+
+/* Scroll-down hint */
+#scroll-hint {
+  position: fixed; bottom: 20px; right: 20px; z-index: 200;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--accent); color: #000;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  transition: opacity .3s;
+  animation: scrollbounce 2s infinite;
+}
+#scroll-hint:hover { opacity: 0.85; }
+#scroll-hint.hidden { opacity: 0; pointer-events: none; }
+@keyframes scrollbounce {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(4px); }
+}
+
+/* Opacity slider */
+.slider-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.slider-row label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+input[type=range] {
+  flex: 1; height: 3px; cursor: pointer;
+  appearance: none; background: var(--border2); border-radius: 2px;
+}
+input[type=range]::-webkit-slider-thumb {
+  appearance: none; width: 12px; height: 12px;
+  background: var(--accent); border-radius: 50%;
+}
+.slider-val { font-family: var(--font-mono); font-size: 11px; color: var(--muted2); width: 28px; }
+
+/* Match info panel */
+#match-info {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  display: none;
+}
+.mi-title {
+  font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+  margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.1em;
+}
+.mi-stat { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.mi-stat-lbl { color: var(--muted2); font-size: 12px; }
+.mi-stat-val { font-family: var(--font-mono); font-size: 12px; color: var(--text); }
+
+/* ── Main Canvas Area ──────────────────────────────────────────────────── */
+#main {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+  position: relative;
+}
+
+#canvas-wrap {
+  flex: 1; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: #03040a;
+}
+
+#canvas-container {
+  position: relative;
+  /* sizing handled by JS */
+}
+
+#canvas-container canvas,
+#canvas-container img {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+}
+
+#map-img { display: block; border-radius: 4px; }
+#cv-heatmap, #cv-markers, #cv-tracks { border-radius: 4px; pointer-events: none; }
+#cv-interact { border-radius: 4px; cursor: crosshair; }
+
+/* Tooltip */
+#tooltip {
+  position: fixed;
+  background: rgba(10,12,22,0.96);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 1000;
+  display: none;
+  max-width: 200px;
+  line-height: 1.6;
+  backdrop-filter: blur(8px);
+}
+.tt-event { font-family: var(--font-ui); font-size: 15px; font-weight: 600; letter-spacing: 0.05em; }
+.tt-row { display: flex; gap: 6px; }
+.tt-lbl { color: var(--muted); }
+
+/* ── Timeline ──────────────────────────────────────────────────────────── */
+#timeline {
+  height: 72px; min-height: 72px; flex-shrink: 0;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  display: none;
+  flex-direction: column;
+  padding: 10px 16px;
+  gap: 8px;
+}
+#timeline.visible { display: flex; }
+#tl-top { display: flex; align-items: center; gap: 12px; }
+#tl-title {
+  font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+  color: var(--muted2); letter-spacing: 0.05em;
+}
+#tl-time {
+  font-family: var(--font-mono); font-size: 12px; color: var(--accent);
+}
+#tl-play {
+  width: 26px; height: 26px;
+  background: var(--accent); border: none; border-radius: 4px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+  flex-shrink: 0;
+}
+#tl-play:hover { background: var(--accent2); }
+#tl-play svg { fill: #000; }
+#tl-scrubber {
+  flex: 1; height: 3px; cursor: pointer;
+  appearance: none; background: var(--border2); border-radius: 2px;
+}
+#tl-scrubber::-webkit-slider-thumb {
+  appearance: none; width: 14px; height: 14px;
+  background: var(--accent); border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(245,166,35,0.2);
+}
+#tl-speed {
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--muted2); cursor: pointer; user-select: none;
+  padding: 4px 8px; background: var(--panel2); border-radius: 4px;
+  border: 1px solid var(--border);
+}
+#tl-players {
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+}
+
+
+/* ── Compare Panel ─────────────────────────────────────────────────────── */
+
+
+
+
+</style>
+</head>
+<body>
+
+<!-- ── Top Bar ────────────────────────────────────────────────────────── -->
+<div id="topbar">
+  <div id="logo">LILA BLACK <span>PLAYER JOURNEY VISUALIZER</span></div>
+  <div id="topstats">
+    <div class="tstat"><span class="tstat-val" id="stat-matches">—</span><span class="tstat-lbl">Matches</span></div>
+    <div class="tstat"><span class="tstat-val" id="stat-players">—</span><span class="tstat-lbl">Players</span></div>
+    <div class="tstat"><span class="tstat-val" id="stat-kills">—</span><span class="tstat-lbl">Kills</span></div>
+    <div class="tstat"><span class="tstat-val" id="stat-events">—</span><span class="tstat-lbl">Events</span></div>
+  </div>
+  <div id="topbar-right">
+    <div id="no-data-banner">⚠ data.js not found — run process_data.py first</div>
+  </div>
+</div>
+
+<!-- ── App Body ───────────────────────────────────────────────────────── -->
+<div id="app">
+
+  <!-- ── Sidebar ──────────────────────────────────────────────────────── -->
+  <div id="sidebar">
+
+    <!-- Map selection -->
+    <div class="sb-section">
+      <div class="sb-title">Map</div>
+      <div id="map-tabs">
+        <div class="map-tab active" data-map="AmbroseValley">
+          <div class="map-dot" style="background:#3b82f6"></div>
+          Ambrose Valley
+          <span class="map-count" id="mc-AmbroseValley">—</span>
+        </div>
+        <div class="map-tab" data-map="GrandRift">
+          <div class="map-dot" style="background:#f59e0b"></div>
+          Grand Rift
+          <span class="map-count" id="mc-GrandRift">—</span>
+        </div>
+        <div class="map-tab" data-map="Lockdown">
+          <div class="map-dot" style="background:#a855f7"></div>
+          Lockdown
+          <span class="map-count" id="mc-Lockdown">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="sb-section">
+      <div class="sb-title">Filter</div>
+      <div class="select-lbl">Date</div>
+      <select id="filter-date">
+        <option value="all">All dates</option>
+        <option value="February 10">February 10</option>
+        <option value="February 11">February 11</option>
+        <option value="February 12">February 12</option>
+        <option value="February 13">February 13</option>
+        <option value="February 14">February 14 (partial)</option>
+      </select>
+      <div class="select-lbl">Match</div>
+      <select id="filter-match">
+        <option value="all">All matches (aggregated)</option>
+      </select>
+    </div>
+
+    <!-- Event type toggles -->
+    <div class="sb-section">
+      <div class="sb-title">Event Types</div>
+      <div class="toggle-group">
+        <label class="toggle-row">
+          <input type="checkbox" id="tog-kill" checked>
+          <div class="toggle-pip" style="color:#ef4444">
+            <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 4l2 2 4-4" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          </div>
+          <span class="toggle-lbl" style="color:#ef4444">
+            <span>Kills</span>
+          </span>
+          <span class="toggle-count" id="cnt-kill">—</span>
+        </label>
+        <label class="toggle-row">
+          <input type="checkbox" id="tog-death" checked>
+          <div class="toggle-pip" style="color:#fb923c">
+            <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 4l2 2 4-4" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          </div>
+          <span class="toggle-lbl" style="color:#fb923c">Deaths</span>
+          <span class="toggle-count" id="cnt-death">—</span>
+        </label>
+        <label class="toggle-row">
+          <input type="checkbox" id="tog-storm" checked>
+          <div class="toggle-pip" style="color:#a855f7">
+            <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 4l2 2 4-4" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          </div>
+          <span class="toggle-lbl" style="color:#a855f7">Storm Deaths</span>
+          <span class="toggle-count" id="cnt-storm">—</span>
+        </label>
+        <label class="toggle-row">
+          <input type="checkbox" id="tog-loot" checked>
+          <div class="toggle-pip" style="color:#22d3ee">
+            <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 4l2 2 4-4" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          </div>
+          <span class="toggle-lbl" style="color:#22d3ee">Loot Pickups</span>
+          <span class="toggle-count" id="cnt-loot">—</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Player type -->
+    <div class="sb-section">
+      <div class="sb-title">Player Type</div>
+      <div class="toggle-group">
+        <label class="toggle-row">
+          <input type="checkbox" id="tog-human" checked>
+          <div class="toggle-pip" style="color:#3b82f6">
+            <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 4l2 2 4-4" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          </div>
+          <span class="toggle-lbl" style="color:#3b82f6">Human Players</span>
+        </label>
+        <label class="toggle-row">
+          <input type="checkbox" id="tog-bot" checked>
+          <div class="toggle-pip" style="color:#10b981">
+            <svg width="8" height="8" viewBox="0 0 8 8"><path d="M1 4l2 2 4-4" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          </div>
+          <span class="toggle-lbl" style="color:#10b981">Bots</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Heatmap -->
+    <div class="sb-section">
+      <div class="sb-title">Heatmap Overlay</div>
+      <div id="hm-layers">
+        <button class="hm-none-btn active" data-hm="none">Off</button>
+        <button class="hm-btn" data-hm="traffic_human" style="border-color:transparent">
+          <div class="hm-swatch" style="background:#3b82f6"></div> Human Traffic
+        </button>
+        <button class="hm-btn" data-hm="traffic_bot" style="border-color:transparent">
+          <div class="hm-swatch" style="background:#10b981"></div> Bot Traffic
+        </button>
+        <button class="hm-btn" data-hm="kills" style="border-color:transparent">
+          <div class="hm-swatch" style="background:#ef4444"></div> Kill Zones
+        </button>
+        <button class="hm-btn" data-hm="deaths" style="border-color:transparent">
+          <div class="hm-swatch" style="background:#fb923c"></div> Death Zones
+        </button>
+        <button class="hm-btn" data-hm="storm" style="border-color:transparent">
+          <div class="hm-swatch" style="background:#a855f7"></div> Storm Deaths
+        </button>
+        <button class="hm-btn" data-hm="loot" style="border-color:transparent">
+          <div class="hm-swatch" style="background:#22d3ee"></div> Loot Density
+        </button>
+      </div>
+      <div class="slider-row">
+        <label>Opacity</label>
+        <input type="range" id="hm-opacity" min="0" max="100" value="65">
+        <span class="slider-val" id="hm-opacity-val">65%</span>
+      </div>
+    </div>
+
+    <!-- Match info -->
+    <div id="match-info">
+      <div class="mi-title">Match Details</div>
+      <div class="mi-stat"><span class="mi-stat-lbl">Match ID</span><span class="mi-stat-val" id="mi-id" style="font-size:10px">—</span></div>
+      <div class="mi-stat"><span class="mi-stat-lbl">Humans</span><span class="mi-stat-val" id="mi-humans">—</span></div>
+      <div class="mi-stat"><span class="mi-stat-lbl">Bots</span><span class="mi-stat-val" id="mi-bots">—</span></div>
+      <div class="mi-stat"><span class="mi-stat-lbl">Duration</span><span class="mi-stat-val" id="mi-dur">—</span></div>
+      <div class="mi-stat"><span class="mi-stat-lbl">Kills</span><span class="mi-stat-val" id="mi-kills">—</span></div>
+      <div class="mi-stat"><span class="mi-stat-lbl">Storm Deaths</span><span class="mi-stat-val" id="mi-storm">—</span></div>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <!-- ── Main Canvas ─────────────────────────────────────────────────── -->
+  <div id="main">
+    <div id="canvas-wrap">
+      <div id="canvas-container">
+        <img id="map-img" alt="minimap">
+        <canvas id="cv-heatmap"></canvas>
+        <canvas id="cv-markers"></canvas>
+        <canvas id="cv-tracks"></canvas>
+        <canvas id="cv-interact"></canvas>
+      </div>
+
+      <!-- Legend -->
+      <div id="legend">
+        <div class="leg-item"><div class="leg-dot" style="background:#ef4444"></div> Kill</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#fb923c"></div> Death</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#a855f7"></div> Storm Death</div>
+        <div class="leg-item"><div class="leg-diamond" style="background:#22d3ee"></div> Loot</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#3b82f6; opacity:.6"></div> Human Path</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#10b981; opacity:.6"></div> Bot Path</div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div id="timeline">
+      <div id="tl-top">
+        <button id="tl-play">
+          <svg id="tl-icon-play" width="10" height="12" viewBox="0 0 10 12"><path d="M1 1l8 5-8 5V1z"/></svg>
+          <svg id="tl-icon-pause" width="10" height="12" viewBox="0 0 10 12" style="display:none"><rect x="1" y="1" width="3" height="10" rx="1"/><rect x="6" y="1" width="3" height="10" rx="1"/></svg>
+        </button>
+        <span id="tl-title">MATCH TIMELINE</span>
+        <input type="range" id="tl-scrubber" min="0" max="1000" value="0">
+        <span id="tl-time">0:00</span>
+        <span id="tl-speed" title="Click to change speed">1×</span>
+      </div>
+      <div id="tl-players"></div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- Tooltip -->
+<div id="tooltip"></div>
+
+
+
+
+<!-- ── Map Analysis ───────────────────────────────────────────────────── -->
+<style>
+#map-analysis { background: var(--panel); border-top: 2px solid var(--border2); padding: 36px 40px 56px; }
+#ma-inner { max-width: 1160px; margin: 0 auto; }
+.ma-section-title { font-family: var(--font-ui); font-size: 18px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); margin: 0 0 4px; }
+.ma-section-sub { font-size: 12px; color: var(--muted); margin-bottom: 24px; }
+.ma-block { margin-bottom: 52px; }
+
+/* metrics table */
+#ma-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#ma-table th { font-family: var(--font-ui); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; color: var(--text); padding: 10px 16px; text-align: left; border-bottom: 2px solid var(--accent); white-space: nowrap; }
+#ma-table th:first-child { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+.ma-th-av { color: #3b82f6 !important; } .ma-th-gr { color: #f59e0b !important; } .ma-th-lk { color: #a855f7 !important; }
+#ma-table td { padding: 9px 16px; border-bottom: 1px solid var(--border); color: var(--text); font-size: 13px; vertical-align: middle; }
+#ma-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+#ma-table td:first-child { color: var(--muted2); font-size: 12px; position: relative; }
+.ma-sec td { padding: 14px 16px 5px !important; background: transparent !important; font-family: var(--font-ui); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted) !important; border-bottom: 1px solid var(--border2) !important; }
+.ma-num { font-family: var(--font-mono); }
+.ma-good { color: #22c55e; } .ma-warn { color: #f59e0b; } .ma-bad { color: #ef4444; }
+
+/* tooltip */
+.ma-tip { position: relative; display: inline-flex; align-items: center; gap: 5px; }
+.ma-tip-icon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,0.08); color: var(--muted); font-size: 9px; font-style: normal; cursor: default; font-family: sans-serif; flex-shrink: 0; }
+.ma-tip-box { display: none; position: absolute; left: 0; top: calc(100% + 6px); background: #0d1117; border: 1px solid var(--border2); border-radius: 6px; padding: 8px 12px; width: 240px; font-size: 11px; color: var(--muted2); line-height: 1.5; z-index: 500; pointer-events: none; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+.ma-tip:hover .ma-tip-box { display: block; }
+
+/* minimap grid canvases - 3 across */
+.ma-maps-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 32px; }
+.ma-map-card { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.ma-map-card-title { font-family: var(--font-ui); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; padding: 10px 12px 6px; }
+.ma-map-card-title.av { color: #3b82f6; } .ma-map-card-title.gr { color: #f59e0b; } .ma-map-card-title.lk { color: #a855f7; }
+.ma-map-canvas-wrap { position: relative; width: 100%; cursor: crosshair; }
+.ma-map-canvas-wrap canvas { display: block; width: 100%; height: auto; }
+.ma-cv-hover { position: absolute; background: rgba(0,0,0,0.82); color: #fff; font-family: monospace; font-size: 11px; padding: 3px 7px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); pointer-events: none; display: none; white-space: nowrap; z-index: 10; }
+.ma-map-legend { display: flex; align-items: center; gap: 6px; padding: 5px 12px 8px; font-size: 10px; color: var(--muted); }
+.ma-legend-bar { height: 5px; flex: 1; border-radius: 3px; }
+
+/* metric tabs */
+.ma-metric-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.ma-tab { font-family: var(--font-ui); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; padding: 6px 14px; border-radius: 5px; border: 1px solid var(--border2); background: var(--panel2); color: var(--muted2); cursor: pointer; transition: all .15s; }
+.ma-tab:hover { border-color: var(--accent); color: var(--text); }
+.ma-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(245,166,35,0.08); }
+
+/* zones cards */
+.ma-zones-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+.ma-zone-card { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+.ma-zone-card-title { font-family: var(--font-ui); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 10px; }
+.ma-zone-card-title.av { color: #3b82f6; } .ma-zone-card-title.gr { color: #f59e0b; } .ma-zone-card-title.lk { color: #a855f7; }
+.ma-zone-row { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted2); margin-bottom: 6px; }
+.ma-zone-rank { font-family: var(--font-mono); font-size: 10px; color: var(--muted); min-width: 14px; }
+.ma-zone-label { font-family: var(--font-mono); color: var(--text); min-width: 80px; }
+.ma-zone-bar-wrap { flex: 1; height: 5px; background: rgba(255,255,255,0.06); border-radius: 2px; position: relative; }
+.ma-zone-bar { height: 100%; border-radius: 2px; transition: width .3s; }
+.ma-zone-pct { font-family: var(--font-mono); font-size: 10px; color: var(--muted2); min-width: 34px; text-align: right; }
+</style>
+
+<div id="map-analysis">
+  <div id="ma-inner">
+
+    <!-- metrics table -->
+    <div class="ma-block">
+      <div class="ma-section-title">MAP ANALYSIS</div>
+      <div class="ma-section-sub">Cross-map comparison &middot; Feb 10&ndash;14, 2026 &middot; 796 matches &middot; Hover metric names for details</div>
+      <table id="ma-table">
+        <thead><tr>
+          <th>Metric</th>
+          <th class="ma-th-av">Ambrose Valley</th>
+          <th class="ma-th-gr">Grand Rift</th>
+          <th class="ma-th-lk">Lockdown</th>
+        </tr></thead>
+        <tbody id="ma-tbody"><tr><td colspan="4" style="padding:16px;color:var(--muted)">Loading...</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- top zones breakdown -->
+    <div class="ma-block">
+      <div class="ma-section-title">TOP ZONES BREAKDOWN</div>
+      <div class="ma-section-sub">Minimaps show heatmap overlay with highlighted top zones. Hover grid for coordinates. Click a tab to switch metric.</div>
+
+      <!-- minimap canvases -->
+      <div class="ma-maps-row">
+        <div class="ma-map-card">
+          <div class="ma-map-card-title av">AMBROSE VALLEY</div>
+          <div class="ma-map-canvas-wrap" id="ma-wrap-av">
+            <canvas id="ma-cv-av" width="480" height="480"></canvas>
+            <div class="ma-cv-hover" id="ma-hover-av"></div>
+          </div>
+          <div class="ma-map-legend"><span>Low</span><div class="ma-legend-bar" style="background:linear-gradient(to right,transparent,rgba(59,130,246,0.8))"></div><span>High</span></div>
+        </div>
+        <div class="ma-map-card">
+          <div class="ma-map-card-title gr">GRAND RIFT</div>
+          <div class="ma-map-canvas-wrap" id="ma-wrap-gr">
+            <canvas id="ma-cv-gr" width="480" height="480"></canvas>
+            <div class="ma-cv-hover" id="ma-hover-gr"></div>
+          </div>
+          <div class="ma-map-legend"><span>Low</span><div class="ma-legend-bar" style="background:linear-gradient(to right,transparent,rgba(245,158,11,0.8))"></div><span>High</span></div>
+        </div>
+        <div class="ma-map-card">
+          <div class="ma-map-card-title lk">LOCKDOWN</div>
+          <div class="ma-map-canvas-wrap" id="ma-wrap-lk">
+            <canvas id="ma-cv-lk" width="480" height="480"></canvas>
+            <div class="ma-cv-hover" id="ma-hover-lk"></div>
+          </div>
+          <div class="ma-map-legend"><span>Low</span><div class="ma-legend-bar" style="background:linear-gradient(to right,transparent,rgba(168,85,247,0.8))"></div><span>High</span></div>
+        </div>
+      </div>
+
+      <!-- metric tabs -->
+      <div class="ma-metric-tabs" id="ma-tabs">
+        <div class="ma-tab active" data-metric="overlap">Human/Bot Zone Overlap</div>
+        <div class="ma-tab" data-metric="kills">Kill Share</div>
+        <div class="ma-tab" data-metric="dead">Dead Zones</div>
+        <div class="ma-tab" data-metric="loot">Loot/Kill Overlap</div>
+      </div>
+
+      <!-- zone bars -->
+      <div id="ma-zones-content">Loading...</div>
+    </div>
+
+  </div>
+</div>
+
+
+
+<!-- Scroll hint -->
+<div id="scroll-hint" title="Scroll down for Map Analysis">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <path d="M3 6l5 5 5-5" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</div>
+<script>
+(function(){
+  var hint = document.getElementById('scroll-hint');
+  var target = document.getElementById('map-analysis');
+  if (!hint || !target) return;
+  hint.addEventListener('click', function(){
+    target.scrollIntoView({ behavior: 'smooth' });
+  });
+  window.addEventListener('scroll', function(){
+    var rect = target.getBoundingClientRect();
+    if (rect.top < window.innerHeight * 0.5) {
+      hint.classList.add('hidden');
+    } else {
+      hint.classList.remove('hidden');
+    }
+  }, { passive: true });
+})();
+</script>
+
+
+<!-- ── Scripts ─────────────────────────────────────────────────────────────── -->
+<!-- 1. Pre-processed telemetry (sets window.LILA_DATA) -->
+<script
+  src="data.js"
+  onerror="document.getElementById('no-data-banner').style.display='block'; console.warn('data.js not found — run process_data.py first');"
+></script>
+
+<!-- 2. Visualization engine (render, filters, timeline, UI) -->
+<script src="app.js"></script>
+
+<!-- 3. Map analysis section (metrics table, minimap grids, zone bars) -->
+<script src="analytics.js"></script>
+
+</html>
