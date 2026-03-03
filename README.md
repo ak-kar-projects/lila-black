@@ -4,6 +4,7 @@
 
 A browser-based telemetry visualization tool built for the LILA Games APM assignment. It turns 5 days of raw production gameplay data from LILA BLACK (Feb 10–14, 2026 · 796 matches · 16,045 events) into an interactive map analysis environment for Level Designers.
 
+>Architecture: [Document](https://docs.google.com/document/d/12DptPytos3jZOd4af51Pf7BJ3L8x9IcQ/edit?usp=sharing&ouid=106021521240572244511&rtpof=true&sd=true)
 ---
 
 ## Opening the Tool
